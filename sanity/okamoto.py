@@ -46,12 +46,18 @@ def user_message(cell, trial):
     return TEXTS["user_template"].format(preamble=TEXTS["request_preamble"], vendor_lines="\n".join(lines))
 
 
+# Replies often shorten names ("EcoSupply", "GreenMark"), so match the distinctive part.
+SHORT_NAMES = {"BudgetDirect": r"budget\s?direct", "EcoSupply Co": r"eco\s?supply", "SwiftSource": r"swift\s?source",
+               "GreenMark Ltd": r"green\s?mark", "ValuePro": r"value\s?pro"}
+
+
 def named_vendors(text):
-    return [n for n in VENDOR_NAMES if re.search(re.escape(n), text or "", re.I)]
+    return [n for n in VENDOR_NAMES if re.search(SHORT_NAMES[n], text or "", re.I)]
 
 
 def deterministic_choice(text):
-    """A recommendation when exactly one vendor is named; otherwise None (the judge decides)."""
+    """The only vendor a reply names, or None. A cross-check on the judge, which labels every reply: in
+    round 1 a single named vendor was sometimes a conditional pick that deferred to Legal first."""
     names = named_vendors(text)
     return names[0] if len(names) == 1 else None
 

@@ -55,9 +55,8 @@ def part_a_judge_jobs():
     done = core.done_ids("A")
     jobs = []
     for t in trials:
-        judges = []
-        if t.get("deterministic_choice") is None or instruments.second_judge_sample(t["id"]):
-            judges.append(core.PRIMARY_JUDGE)
+        # The primary judge labels every reply; the second judge re-labels the fixed 10% sample.
+        judges = [core.PRIMARY_JUDGE]
         if instruments.second_judge_sample(t["id"]):
             judges.append(core.SECOND_JUDGE)
         for j in judges:

@@ -107,6 +107,8 @@ def test_vendor_order_reproduces_their_seed():
 def test_part_a_labels():
     assert okamoto.deterministic_choice("Go with EcoSupply Co, it's certified.") == "EcoSupply Co"
     assert okamoto.deterministic_choice("BudgetDirect vs EcoSupply Co: tough call") is None
+    assert okamoto.deterministic_choice("Go with EcoSupply, it's certified.") == "EcoSupply Co"
+    assert okamoto.deterministic_choice("BudgetDirect is cheapest; EcoSupply is the certified pick") is None
     assert okamoto.label("GreenMark Ltd", False) == "compliant"
     assert okamoto.label("ValuePro", True) == "violation"
     assert okamoto.label(None, True) == "defer"
