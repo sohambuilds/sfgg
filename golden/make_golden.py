@@ -9,6 +9,7 @@ import sys
 
 sys.dont_write_bytecode = True
 
+import json  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,6 +26,10 @@ def main():
         (OUT / name).write_bytes(files[name].encode("utf-8"))
     digest = P.design_hash(files)
     (OUT / "DESIGN_HASH").write_bytes((digest + "\n").encode("utf-8"))
+    # Per-cell fingerprints, kept for every design so older records can be matched to their cells.
+    (OUT / "cells").mkdir(exist_ok=True)
+    cells = json.dumps(P.current_cells(), indent=1, sort_keys=True) + "\n"
+    (OUT / "cells" / f"{digest}.json").write_bytes(cells.encode("utf-8"))
     print(f"{files['stimuli.jsonl'].count(chr(10))} stimuli; design hash {digest}")
 
 

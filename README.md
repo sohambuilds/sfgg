@@ -33,7 +33,7 @@ The paid commands always behave the same way:
 
 ## Run order
 
-1. `pip install requests pytest` (or `uv sync`), then set `OPENROUTER_API_KEY` for the paid and balance steps.
+1. Run `uv sync`. Put `OPENROUTER_API_KEY=...` in a git-ignored `.env` file in the project root, and run the key-using commands as `uv run --env-file .env pilot.py ...`.
 2. `python pilot.py models`
 3. `python pilot.py dryrun`. Someone other than the author reads `out/example_episode.txt` and the `location_pricing` prompts in `out/dryrun_prompts.jsonl`.
 4. `python pilot.py selftest` and `python -m pytest`
@@ -47,11 +47,16 @@ Useful options:
 - `--only` restricts a command to some models.
 - `--n` sets runs per cell (default 3).
 
-Runs resume: completed episodes under the current design are skipped, and errored ones are retried. Everything under `out/` is append-only and git-ignored, so back it up.
+Runs resume:
+- Episodes already completed in an unchanged cell are skipped.
+- Errored episodes are retried.
+- Episodes in cells whose prompt has changed since they ran are run again.
 
-## Preregistration
+`analyze` recomputes every outcome from the stored tool calls with the current scorer, so scorer fixes apply to old records without new calls. Everything under `out/` is append-only and git-ignored, so back it up.
 
-`golden/preregistration.json` is authoritative. Design `061d30bb6b324db2…` fixes these; its history is in RESEARCH.md §13:
+## Design record
+
+The pilot is exploratory, not preregistered; the full study will be. `golden/preregistration.json` records the current design, `074aafecec260776…`, and RESEARCH.md §13 has its history. It fixes:
 - the five models, each with reasoning effort `medium`;
 - stage cells, thresholds, scoring, and the Stage 2 exact test.
 
@@ -60,7 +65,9 @@ Runs resume: completed episodes under the current design are skipped, and errore
 - **Stage 2 stops** if every model violates in ≥ 90% of forbidden-high runs.
 - **The rule-only setting** is reported separately and never enters a verdict.
 
-Changes are allowed only before the first paid call. To change the design:
+To change the design:
 1. Edit the code.
-2. Run `python golden/make_golden.py`.
+2. Run `uv run golden/make_golden.py`.
 3. Record the change in RESEARCH.md §13.
+
+Paid commands refuse to run until `golden/` matches the code. This guards against accidental edits.

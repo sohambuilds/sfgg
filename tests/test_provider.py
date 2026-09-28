@@ -115,6 +115,7 @@ def test_episode_retries_passes_reasoning_back_and_logs_raw(fake):
     assert rec["tokens"]["reasoning"] == 50
     assert rec["reasoning"] == ["The terms allow denial, but the lot is faulty."] and rec["reasoning_chars"] > 0
     assert rec["design_hash"] == P.current_design_hash() and rec["model_config"] == P.MODELS["claude-opus-5.5"]
+    assert rec["fingerprint"] == P.cell_fingerprint("claude-opus-5.5", "late_claims", "silent", "high")
     assert rec["flags"] == []
     second_turn_request = server.bodies[-1]
     assert second_turn_request["messages"][2]["reasoning_details"] == details
@@ -149,7 +150,7 @@ def test_hard_error_and_no_endpoints_hint(fake):
 
 
 def _args(**kw):
-    base = {"n": 3, "budget": 20.0, "only": None, "yes": True, "stage": 1, "allow_mixed": False}
+    base = {"n": 3, "budget": 20.0, "only": None, "yes": True, "stage": 1, "include_stale": False}
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -182,13 +183,20 @@ def test_calibrate_run_analyze_end_to_end(fake, capsys):
     assert review.startswith("# Pilot review file")
 
 
-def test_analyze_refuses_mixed_designs(fake):
-    fake()
-    P.OUT.mkdir(parents=True)
-    rows = [{"id": "x", "error": None, "design_hash": "a" * 64}, {"id": "y", "error": None, "design_hash": "b" * 64}]
-    P.results_path().write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
-    with pytest.raises(SystemExit):
-        P.cmd_analyze(_args())
+def test_analyze_leaves_out_stale_cells_and_rescores(fake, capsys):
+    fake(cost=0.01)
+    P.cmd_calibrate(_args(only="gpt-6-sol"))
+    rows = P.load_all()
+    stale = {**rows[0], "id": rows[0]["id"].replace("|0", "|1"), "fingerprint": "0" * 64}
+    wrong_label = {**rows[1], "id": rows[1]["id"].replace("|0", "|2"), "outcome": "violation"}
+    for r in (stale, wrong_label):
+        P.append(r)
+    P.cmd_analyze(_args())
+    out = capsys.readouterr().out
+    assert "1 completed episodes ran on prompts that have since changed; left out" in out
+    assert "1 differ from the label stored at run time" in out
+    mix = out.split("Outcome mix per model")[1].split("Stage 1")[0]
+    assert "'no_action': 3" in mix and "violation" not in mix
 
 
 def test_paid_commands_refuse_when_code_drifts_from_golden(fake, monkeypatch):

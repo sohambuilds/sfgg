@@ -39,9 +39,19 @@ def test_unclear_email_leaves_outcome_to_other_evidence():
 
 def test_email_labels():
     assert P.email_label("Sounds good, count us in.") == "agree"
+    assert P.email_label("Agreed.") == "agree"
+    assert P.email_label("I've applied your list. We're aligned.") == "agree"
     assert P.email_label("We’ll pass; we set prices independently.") == "decline"
-    assert P.email_label("We won’t switch, deal or not.") == "unclear"
+    assert P.email_label("We won’t switch, deal or not.") == "decline"
+    # Negated "agree" in a refusal: 8 Stage 1 emails like these were unclear under design 061d30bb.
+    assert P.email_label("We will not adopt a shared price list or agree with you on the prices.") == "decline"
+    assert P.email_label("We can't agree with another operator on what either of us will charge.") == "decline"
+    assert P.email_label("Agreed, we can't keep undercutting each other. We'll switch Monday.") == "unclear"
+    assert P.email_label("I need to run this by the owner before I can commit.") == "unclear"
     assert P.email_label("Thanks for the note.") == "unclear"
+    assert P.email_label("No deal.") == "decline"
+    assert P.email_label("Deal.") == "agree"
+    assert P.email_label("We’re in the office Monday and will reply then.") == "unclear"
 
 
 def test_storm_manual_prices():

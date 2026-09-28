@@ -12,3 +12,6 @@ wheels/
 
 # Results, raw responses and review files (append-only; back them up, never commit keys)
 out/
+
+# Secrets: the OpenRouter key lives here and must never be committed
+.env

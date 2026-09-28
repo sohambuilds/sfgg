@@ -35,16 +35,29 @@ def test_reservations_block_concurrent_overspend():
     assert holds[:2] == pytest.approx([0.45, 0.45]) and holds[2:] == [None, None]
 
 
-def test_resume_skips_done_and_retries_errored(tmp_path, monkeypatch):
+def _rec(rep, **kw):
+    cell = {"model": "grok-4.7", "scenario": "late_claims", "wording": "silent", "size": "high"}
+    rec = {**cell, "id": f"grok-4.7|late_claims|silent|high|{rep}", "error": None,
+           "fingerprint": P.cell_fingerprint(*cell.values())}
+    return {**rec, **kw}
+
+
+def test_resume_skips_done_and_retries_errored_or_changed(tmp_path, monkeypatch):
     monkeypatch.setattr(P, "OUT", tmp_path)
-    h = P.current_design_hash()
     recs = [
-        {"id": "a", "error": None, "design_hash": h},
-        {"id": "b", "error": "HTTP 500", "design_hash": h},
-        {"id": "c", "error": None, "design_hash": "0" * 64},  # another design: not done here
+        _rec(0),
+        _rec(1, error="HTTP 500"),
+        _rec(2, fingerprint="0" * 64),  # its prompt has changed since it ran: rerun
     ]
     tmp_path.joinpath("results.jsonl").write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
-    assert set(P.load_done()) == {"a"}
+    assert set(P.load_done()) == {"grok-4.7|late_claims|silent|high|0"}
+
+
+def test_records_without_fingerprint_match_through_cell_history():
+    rec = _rec(0, design_hash=P.current_design_hash())
+    del rec["fingerprint"]
+    assert P.is_current(rec)
+    assert not P.is_current({**rec, "design_hash": "f" * 64})
 
 
 def test_planned_ids_are_stable_and_rep_major():

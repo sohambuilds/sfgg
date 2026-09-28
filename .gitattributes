@@ -3,3 +3,4 @@ golden/stimuli.jsonl -text
 golden/tools.json -text
 golden/preregistration.json -text
 golden/DESIGN_HASH -text
+golden/cells/*.json -text

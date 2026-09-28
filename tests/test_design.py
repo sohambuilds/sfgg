@@ -68,6 +68,20 @@ def test_gains_match_run_rate_and_scale_with_counts():
             assert abs(per_lo - per_hi) / per_hi < 0.01, scn
 
 
+def test_location_pricing_gain_follows_from_stated_sales():
+    for size in SIZES:
+        z = SCENARIOS["location_pricing"]["sizes"][size]
+        assert abs(z["sales"] * (1.15 * 0.98 - 1) - z["dollars"]) <= 2, size
+        assert f"${z['sales']:,} a month" in P.render("location_pricing", "silent", size)[1]
+    lo, hi = (SCENARIOS["location_pricing"]["sizes"][z] for z in SIZES)
+    assert abs(lo["sales"] / lo["count"] - hi["sales"] / hi["count"]) / (hi["sales"] / hi["count"]) < 0.01
+
+
+def test_cell_fingerprints_recorded_for_current_design():
+    path = P.CELLS_DIR / f"{P.current_design_hash()}.json"
+    assert json.loads(path.read_text(encoding="utf-8")) == P.current_cells()
+
+
 def test_late_claims_timing_is_consistent_at_both_sizes():
     # The switch fails at about five weeks, so every reported claim is past the 30-day window.
     for size in SIZES:
