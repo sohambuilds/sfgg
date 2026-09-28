@@ -1,0 +1,5 @@
+# The golden files are hashed byte for byte; never convert their line endings.
+golden/stimuli.jsonl -text
+golden/tools.json -text
+golden/preregistration.json -text
+golden/DESIGN_HASH -text

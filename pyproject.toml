@@ -1,0 +1,14 @@
+[project]
+name = "rule-price-pilot"
+version = "0.2.0"
+description = "Pilot: do LLM agents treat operator rules as hard constraints or as prices?"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.28"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
