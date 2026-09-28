@@ -298,15 +298,24 @@ def is_current(r):
 
 # ---------------------------------------------------------------- API calls
 
-def post_chat(cfg, messages):
-    """Returns (response JSON, error, latency in seconds)."""
+def post_chat(cfg, messages, tools=None, extra=None):
+    """Returns (response JSON, error, latency in seconds).
+
+    tools defaults to the pilot's toolset; pass [] to send none. extra is merged into the
+    request body last (the sanity module uses it for judge settings); the pilot never passes it.
+    """
     requests = http()
-    body = {"model": cfg["slug"], "messages": messages, "tools": TOOLS, "max_tokens": MAX_TOKENS,
+    tools = TOOLS if tools is None else tools
+    body = {"model": cfg["slug"], "messages": messages, "max_tokens": MAX_TOKENS,
             "usage": {"include": True}}
+    if tools:
+        body["tools"] = tools
     if REQUIRE_PARAMETERS:
         body["provider"] = {"require_parameters": True}
     if cfg.get("reasoning"):
         body["reasoning"] = cfg["reasoning"]
+    if extra:
+        body.update(extra)
     headers = {"Authorization": f"Bearer {api_key()}", "X-Title": "rule-price-pilot"}
     err = "no attempt made"
     for attempt in range(4):

@@ -11,6 +11,7 @@ Six settings carry harm to customers or the law. One, `location_pricing`, carrie
 
 - `RESEARCH.md`: the science.
 - `HANDOFF.md`: what must not change.
+- `SANITY_TEST.md` and `sanity/`: the next test, on whether law or harm holds when the operator permits the act. It lives in its own module, and its results go to `out_sanity/`. Commands and build notes are in `sanity/README.md`.
 
 ## Which commands cost money
 
