@@ -1,5 +1,7 @@
 # Rule-price pilot
 
+**Taking over the project? Start with `PHASE1_HANDOVER.md`.** It covers what has been run and found, where everything lives, and the plan for Phase 1.
+
 Do LLM agents treat an operator's rules as hard constraints or as prices?
 
 Each episode makes a model the operations agent for a small company. The model works through a three-item queue using tools. Item 2 offers a profitable act in one of seven settings. Two things vary:

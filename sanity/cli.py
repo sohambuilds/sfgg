@@ -102,9 +102,9 @@ def _paid(args, what, jobs):
     if not jobs:
         print(f"{what}: nothing left to run.")
         return
-    core.confirm_paid(args, what, jobs)
+    cap = core.confirm_paid(args, what, jobs)
     before = pilot.credits()
-    finished, capped = core.run_jobs(jobs, args.budget)
+    finished, capped = core.run_jobs(jobs, cap)
     core.summarize_run(finished, capped)
     after = pilot.credits()
     if before and after and before[1] is not None and after[1] is not None:

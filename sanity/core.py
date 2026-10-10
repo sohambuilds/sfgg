@@ -192,6 +192,31 @@ def measured(records=None):
     return out
 
 
+# Errors that mean no further call can succeed on this key; the runner stops instead of retrying them all.
+OUT_OF_CREDIT = re.compile(r"key limit exceeded|insufficient credits|HTTP 402", re.I)
+LIVE_MARGIN = 0.25  # dollars left unspent below the live key or account limit
+
+
+def live_headroom():
+    """Dollars this key can still spend right now: the smaller of the key's own remaining limit
+    (GET /api/v1/key) and the account balance (GET /credits). None if neither can be read."""
+    requests = pilot.http()
+    headers = {"Authorization": f"Bearer {pilot.api_key()}"}
+    found = {}
+    try:
+        r = requests.get(f"{pilot.API}/key", headers=headers, timeout=30)
+        if r.status_code == 200:
+            d = r.json().get("data") or {}
+            if d.get("limit_remaining") is not None:
+                found["key limit"] = float(d["limit_remaining"])
+    except Exception:  # noqa: BLE001 - reported as unreadable
+        pass
+    got = pilot.credits()
+    if got and got[0] is not None and got[1] is not None:
+        found["account balance"] = float(got[0]) - float(got[1])
+    return (min(found.values()), found) if found else (None, found)
+
+
 def confirm_paid(args, what, jobs):
     """Every paid command states what it will run and needs --yes and an explicit --budget."""
     records = load_all()
@@ -208,6 +233,16 @@ def confirm_paid(args, what, jobs):
     print(f"Sanity-test spend so far ${s:.2f}; cap ${args.budget:.2f}.")
     if not args.yes:
         sys.exit("Nothing was run. Add --yes to spend money.")
+    room, parts = live_headroom()
+    if room is None:
+        print("Could not read the key's limit or the account balance; only the --budget cap applies.")
+        return args.budget
+    detail = ", ".join(f"{k} ${v:.2f}" for k, v in parts.items())
+    cap = min(args.budget, s + room - LIVE_MARGIN)
+    print(f"Live: {detail}. Effective cap ${cap:.2f} (leaves ${LIVE_MARGIN:.2f} under the live limit).")
+    if cap <= s:
+        sys.exit("No room left under the key's limit or the account balance. Raise the key's limit or use a new key.")
+    return cap
 
 
 def run_jobs(jobs, cap):
@@ -230,6 +265,9 @@ def run_jobs(jobs, cap):
         append(j["part"], rec)
         finished.append(rec)
         budget.spent += rec.get("cost") or 0.0
+        if OUT_OF_CREDIT.search(rec.get("error") or ""):
+            print(f"  stopping: {rec['error'][:120]}")
+            return finished, True
         if rec.get("cost") is not None and not rec.get("error"):
             budget.max_cost[k] = rec["cost"]
         else:
@@ -249,6 +287,9 @@ def run_jobs(jobs, cap):
         rec = j["run"]()
         budget.settle(k, hold, rec.get("cost"))
         append(j["part"], rec)
+        if OUT_OF_CREDIT.search(rec.get("error") or "") and not capped.is_set():
+            print(f"  stopping: {rec['error'][:120]}")
+            capped.set()
         return rec
 
     with ThreadPoolExecutor(WORKERS) as pool:

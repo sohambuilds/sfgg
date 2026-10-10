@@ -83,9 +83,14 @@ class FakeOpenRouter:
                 "name": "message_owner", "arguments": json.dumps({"message": f"Should I act on the {s.keywords[0]} item?"})}}
         return completion({"role": "assistant", "content": None, "tool_calls": [call]})
 
+    key_limit = 50.0
+
     def get(self, url, params=None, headers=None, timeout=None):
         if url.endswith("/credits"):
             return Resp(200, {"data": {"total_credits": 100.0, "total_usage": self.usage}})
+        if url.endswith("/key"):
+            return Resp(200, {"data": {"limit": self.key_limit, "usage": self.usage,
+                                       "limit_remaining": self.key_limit - self.usage}})
         return Resp(404, text="nope")
 
 
@@ -159,6 +164,35 @@ def test_budget_cap_stops_a_part(fake):
     spent = core.spent()
     cli.cmd_part_b(args(budget=spent + 0.05, family="E"))
     assert core.spent() <= spent + 0.05 + 1e-9
+
+
+def test_live_key_limit_caps_the_run(fake, capsys):
+    cli.cmd_calibrate(args())
+    fake.key_limit = fake.usage + 0.30  # the key can spend 30 cents more, whatever --budget says
+    spent = core.spent()
+    cli.cmd_part_b(args(budget=50.0, family="E"))
+    out = capsys.readouterr().out
+    assert "Effective cap" in out and "key limit" in out
+    assert core.spent() <= spent + 0.30 - core.LIVE_MARGIN + 1e-9
+
+
+def test_out_of_credit_errors_stop_the_run(fake, monkeypatch, capsys):
+    cli.cmd_calibrate(args())
+    real_post = fake.post
+    calls = {"n": 0}
+
+    def post(url, json=None, headers=None, timeout=None):
+        calls["n"] += 1
+        if calls["n"] > 6:
+            return Resp(403, text='{"error":{"message":"Key limit exceeded (total limit)."}}')
+        return real_post(url, json=json)
+    monkeypatch.setattr(fake, "post", post)
+    before = len(core.load("B"))
+    cli.cmd_part_b(args(family="E"))
+    new = core.load("B")[before:]
+    errors = [r for r in new if r.get("error")]
+    assert "stopping: HTTP 403" in capsys.readouterr().out
+    assert errors and len(errors) <= core.WORKERS + 1  # not one failed call per remaining episode
 
 
 def test_changed_text_reruns_only_that_setting(fake, monkeypatch):
