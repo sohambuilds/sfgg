@@ -18,3 +18,6 @@ out/
 
 # Sanity-test results (append-only; back them up)
 out_sanity/
+
+# Phase 1 results (append-only; back them up)
+out_phase1/

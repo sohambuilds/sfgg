@@ -26,7 +26,21 @@ PRIMARY_JUDGE, SECOND_JUDGE = "qwen3.8-max-0902", "mistral-medium-3.5"
 JUDGE_EXTRA = {"temperature": 0, "max_tokens": 4000}
 PARTS = ("A", "B", "C", "D")
 WORKERS = 4
+LABEL = "Sanity-test"  # names the study in cost messages
 _lock = threading.Lock()
+
+
+def configure(out=None, models=None, parts=None, label=None):
+    """Point the engine at another study (Phase 1) without forking it. Defaults stay the sanity test's."""
+    global OUT, MODELS, PARTS, LABEL
+    if out is not None:
+        OUT = Path(out)
+    if models is not None:
+        MODELS = models
+    if parts is not None:
+        PARTS = tuple(parts)
+    if label is not None:
+        LABEL = label
 
 
 def config(key):
@@ -121,7 +135,9 @@ def run_single(key, messages, rec_id, extra=None):
 
 
 def run_conversation(key, system, user, tools, tool_results, rec_id):
-    """The pilot's episode loop with a given toolset: up to MAX_TURNS turns with fixed tool results."""
+    """The pilot's episode loop with a given toolset: up to MAX_TURNS turns with fixed tool results.
+    A tool result is a string, or a callable taking the call's arguments (for tools such as read_document).
+    Each recorded call carries the result it was given."""
     cfg = config(key)
     names = "|".join(re.escape(t["function"]["name"]) for t in tools)
     text_call = re.compile(rf"<tool_call|<function[=\s>]|\"tool_calls\"|\b(?:{names})\s*\(|\"name\"\s*:\s*\"(?:{names})\"")
@@ -168,8 +184,10 @@ def run_conversation(key, system, user, tools, tool_results, rec_id):
                 args = {"_unparsed": f.get("arguments")}
             if not isinstance(args, dict):
                 args = {"_unparsed": args}
-            calls.append({"name": name, "args": args, "turn": turn})
-            messages.append({"role": "tool", "tool_call_id": tc.get("id"), "content": tool_results.get(name, "Done.")})
+            result = tool_results.get(name, "Done.")
+            result = result(args) if callable(result) else result
+            calls.append({"name": name, "args": args, "turn": turn, "result": result})
+            messages.append({"role": "tool", "tool_call_id": tc.get("id"), "content": result})
     else:
         flags.append("stopped at the turn limit with tool calls pending")
     return {"error": None, "calls": calls, "text": texts, "turn_texts": turn_texts, "reasoning": reasoning, "turns": turns,
@@ -230,7 +248,7 @@ def confirm_paid(args, what, jobs):
         est = (f"measured mean ${statistics.mean(c):.4f} over {len(c)}, so about ${n * statistics.mean(c):.2f} for these"
                if c else "no measured cost yet; its first call runs alone to measure it")
         print(f"  part {part}  {m:<20} {n:>4}  {est}")
-    print(f"Sanity-test spend so far ${s:.2f}; cap ${args.budget:.2f}.")
+    print(f"{LABEL} spend so far ${s:.2f}; cap ${args.budget:.2f}.")
     if not args.yes:
         sys.exit("Nothing was run. Add --yes to spend money.")
     room, parts = live_headroom()
@@ -305,7 +323,7 @@ def run_jobs(jobs, cap):
 def summarize_run(finished, capped):
     errors = sum(1 for r in finished if r.get("error"))
     flagged = sum(1 for r in finished if r.get("flags"))
-    print(f"Ran {len(finished)} ({errors} errors, {flagged} flagged); sanity-test spend now ${spent():.2f}.")
+    print(f"Ran {len(finished)} ({errors} errors, {flagged} flagged); {LABEL.lower()} spend now ${spent():.2f}.")
     if capped:
         print("Stopped at the budget cap before finishing.")
     if errors:

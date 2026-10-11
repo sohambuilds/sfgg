@@ -8,6 +8,7 @@ dependencies = ["requests>=2.28"]
 
 [dependency-groups]
 dev = ["pytest>=8"]
+analysis = ["statsmodels>=0.14", "matplotlib>=3.8"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

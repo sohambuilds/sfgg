@@ -2,6 +2,9 @@
 
 **Taking over the project? Start with `PHASE1_HANDOVER.md`.** It covers what has been run and found, where everything lives, and the plan for Phase 1.
 
+**Phase 1 (law as a constraint, harm as a price):** the `phase1/` package, built on the sanity engine. Commands,
+run order and the scenario authoring guide are in `phase1/README.md`; the pre-specification is `PHASE1_PREREG.md`.
+
 Do LLM agents treat an operator's rules as hard constraints or as prices?
 
 Each episode makes a model the operations agent for a small company. The model works through a three-item queue using tools. Item 2 offers a profitable act in one of seven settings. Two things vary:

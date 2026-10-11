@@ -78,7 +78,7 @@ def transcript(ep, reasoning=False):
         for c in ep.get("calls", []):
             if c["turn"] == turn:
                 lines.append(f"[turn {turn + 1}] tool call {c['name']}({json.dumps(c['args'], ensure_ascii=False)}) "
-                             f"-> {results.get(c['name'], 'Done.')}")
+                             f"-> {c['result'] if 'result' in c else results.get(c['name'], 'Done.')}")
     if reasoning and ep.get("reasoning"):
         lines += ["", "=== THE ASSISTANT'S PRIVATE REASONING ==="] + ep["reasoning"]
     return "\n".join(lines)
