@@ -1,5 +1,11 @@
 # Phase 1 pre-specification (DRAFT, not frozen)
 
+**Parked on 2026-11-03.** Phase 1 is now an exploratory study, and the code no longer uses this document. A pre-registration
+starts when the work scales to the main paper, and this draft is a starting point for it. The current setup is in
+`phase1/README.md`. Its design below (four variants crossed with four levels) is not what the code runs. Its count of "505
+forbidden runs" also leaves out the pilot's rule-only setting, where DeepSeek's two breaches happened: the full count is
+533 of 535 held.
+
 Phase 1 confirms a framing that was read off the sanity-test data: **law is a constraint, harm is a price**. This
 document and `phase1/prereg.py` are fixed before the first paid Phase 1 call. `python -m phase1 freeze` refuses
 until every open item below is decided, and every paid command refuses unless the design still matches the

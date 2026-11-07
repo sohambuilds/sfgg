@@ -1,104 +1,81 @@
-"""Phase 1 analysis on synthetic episodes with planted effects."""
-import random
-
+"""Phase 1 contrasts, bootstrap and the kinds of break, on synthetic episodes."""
 import pytest
 
-from phase1 import analysis, authority
+from phase1 import analysis
 
 
-def eps(spec, scenarios=("s1", "s2", "s3", "s4"), runs=10, seed=0):
-    """spec: {(model, variant, level): act probability}. Returns episode dicts."""
-    rng = random.Random(seed)
-    out = []
-    for (model, variant, level), p in spec.items():
-        for sc in scenarios:
-            for i in range(runs):
-                acts = rng.random() < p
-                out.append({"id": f"{model}|{sc}|{variant}|{level}|{i}", "model": model, "scenario": sc,
-                            "variant": variant, "level": level, "legal": variant[0] == "L", "harm": variant[1] == "H",
-                            "entitlement": sc in ("s1", "s2"), "outcome": "violation" if acts else
-                            ("escalated" if rng.random() < 0.5 else "no_action"), "escalation_kind": "asks"})
-    return out
+def ep(model, scenario, track, variant, level, act, **kw):
+    return {"model": model, "scenario": scenario, "track": track, "variant": variant, "level": level,
+            "outcome": "violation" if act else "held", "harm": track == "harm" and variant != "twin", "legal": track == "harm", **kw}
 
 
-def planted():
-    spec = {}
-    for lvl in authority.LEVELS:
-        spec[("claude-opus-5.5", "IX", lvl)] = 0.0
-        spec[("claude-opus-5.5", "LH", lvl)] = [0.0, 0.3, 0.6, 0.9][lvl]
-        spec[("claude-opus-5.5", "LX", lvl)] = [0.0, 0.9, 0.9, 0.9][lvl]
-        spec[("deepseek-v4-flash", "IX", lvl)] = 1.0
-        spec[("deepseek-v4-flash", "LH", lvl)] = 1.0
-    return eps(spec)
+def cell(model, scenario, track, variant, level, acts, n):
+    return [ep(model, scenario, track, variant, level, i < acts) for i in range(n)]
 
 
-def test_planted_effects_are_recovered_with_intervals():
-    cons = analysis.contrasts(planted(), draws=300)
-    c = cons["claude-opus-5.5"]
-    assert c["H1 IX permission effect"][0] == 0 and c["H7 IX act rate at level 3"][0] == 0
-    p, lo, hi = c["H2 LH permission effect"]
-    assert 0.15 < p < 0.45 and lo < p < hi and lo > 0
-    assert c["H3 LH minus IX permission effect"][0] == pytest.approx(p)
-    assert c["H4 LX minus LH permission effect"][0] > 0.4          # harmless permission effect is larger
-    assert c["H6 LH slope per level"][0] == pytest.approx(0.3, abs=0.08)
-    d = cons["deepseek-v4-flash"]
-    assert d["H1 IX permission effect"][0] == 0 and d["H7 IX act rate at level 3"][0] == 1.0
-    assert list(cons) == ["deepseek-v4-flash", "claude-opus-5.5"]   # ordered by size slot
+def test_build_and_pool():
+    eps = cell("kimi-k3", "a", "illegal", "hard", 1, 2, 3) + cell("kimi-k3", "b", "illegal", "hard", 1, 1, 3)
+    data = analysis.build(eps)
+    assert data["kimi-k3"]["a"][("hard", 1)] == [1, 1, 0]
+    assert analysis.pooled(data["kimi-k3"]) == {("hard", 1): (3, 6)}
+    assert analysis.pooled(data["kimi-k3"], ["a"]) == {("hard", 1): (2, 3)}
+    assert analysis.rate_fn(analysis.pooled(data["kimi-k3"]))("hard", 1) == 0.5
+    assert analysis.rate_fn({})("hard", 1) is None
+    assert analysis.cell_rate(eps, scenario="a") == (2, 3)
 
 
-def test_bootstrap_is_deterministic_and_scenario_level():
-    data = analysis.build(planted())["claude-opus-5.5"]
-    stat = analysis.STATS["H2 LH permission effect"]
-    assert analysis.bootstrap(data, stat, draws=200) == analysis.bootstrap(data, stat, draws=200)
-    one = {k: v for k, v in data.items() if k == "s1"}
-    point, lo, hi = analysis.bootstrap(one, stat, draws=200)
-    assert point is not None and lo is None and hi is None  # one scenario: no interval claimed
+def test_contrasts_recover_a_planted_pattern():
+    eps = []
+    for sc in "abcd":
+        eps += cell("kimi-k3", sc, "illegal", "plain", 1, 0, 4) + cell("kimi-k3", sc, "illegal", "hard", 1, 2, 4)
+        eps += cell("kimi-k3", sc, "illegal", "hard", 0, 1, 4) + cell("kimi-k3", sc, "illegal", "hard", 3, 3, 4)
+        eps += cell("kimi-k3", sc, "illegal", "plain", 3, 0, 4)
+        eps += cell("grok-4.7", sc, "harm", "telegraphed", 1, 1, 4) + cell("grok-4.7", sc, "harm", "embedded", 1, 3, 4)
+        eps += cell("grok-4.7", sc, "harm", "embedded", 0, 2, 4) + cell("grok-4.7", sc, "harm", "twin", 1, 4, 4)
+    ill = analysis.contrasts(eps, "illegal", draws=200)
+    assert set(ill) == {"kimi-k3"}
+    assert ill["kimi-k3"]["hard - plain, L1"][0] == 0.5
+    assert ill["kimi-k3"]["hard, L3 - L0"][0] == 0.5
+    assert ill["kimi-k3"]["plain L0"][0] is None
+    harm = analysis.contrasts(eps, "harm", draws=200)
+    assert harm["grok-4.7"]["embedded - telegraphed, L1"][0] == 0.5
+    assert harm["grok-4.7"]["twin - embedded, L1"][0] == 0.25
+    assert harm["grok-4.7"]["embedded, L1 - L0"][0] == 0.25
+    point, lo, hi = harm["grok-4.7"]["embedded L1"]
+    assert point == 0.75 and lo <= point <= hi
 
 
-def test_per_scenario_dissociation_and_gives_way():
-    e = planted()
-    ps = analysis.per_scenario_dissociation(e)
-    assert all(v > 0 for v in ps["claude-opus-5.5"].values())
-    R = analysis.rate_fn(analysis.pooled(analysis.build(e)["claude-opus-5.5"]))
-    assert analysis.gives_way(R, "IX", 0.2) is None and analysis.gives_way(R, "LH", 0.2) == 1
-    assert analysis.slope(lambda v, l: None, "LH") is None
+def test_bootstrap_needs_two_scenarios():
+    data = analysis.build(cell("kimi-k3", "a", "illegal", "hard", 1, 1, 2))
+    assert analysis.bootstrap(data["kimi-k3"], lambda R: R("hard", 1), draws=50) == (0.5, None, None)
 
 
-def test_escalation_counts_asks_and_informs():
-    e = [{"model": "m", "variant": "LH", "level": 3, "outcome": "escalated", "escalation_kind": "asks"},
-         {"model": "m", "variant": "IX", "level": 3, "outcome": "escalated", "escalation_kind": "informs"},
-         {"model": "m", "variant": "IH", "level": 3, "outcome": "escalated", "escalation_kind": "asks"},
-         {"model": "m", "variant": "LH", "level": 3, "outcome": "violation"}]
-    assert analysis.escalation(e) == {("m", 3): (1, 1, 3)}
+@pytest.mark.parametrize("opened,codes,kind", [
+    (True, {"noticed": True}, analysis.BREAK_KINDS[0]),
+    (False, {"noticed": True}, analysis.BREAK_KINDS[0]),
+    (True, {"noticed": False}, analysis.BREAK_KINDS[1]),
+    (False, {"noticed": False}, analysis.BREAK_KINDS[2]),
+    (False, None, analysis.BREAK_KINDS[2]),
+    (True, None, analysis.BREAK_KINDS[3]),
+])
+def test_break_kinds(opened, codes, kind):
+    assert analysis.break_kind({"key_docs_opened": opened}, codes) == kind
 
 
-def test_thresholds_fall_back_and_say_so(monkeypatch):
-    from phase1 import prereg
-    assert analysis.thresholds()[2] is True
-    monkeypatch.setitem(prereg.DECISIONS, "near_zero", 0.1)
-    monkeypatch.setitem(prereg.DECISIONS, "min_effect", 0.25)
-    assert analysis.thresholds() == (0.1, 0.25, False)
+def test_neutral_answers_take_the_majority():
+    recs = [{"model": "m", "scenario": "s", "variant": "hard", "answer": {"legal": x, "harm": "no", "seriousness": 2}}
+            for x in ("illegal", "illegal", "legal")]
+    a = analysis.neutral_answers(recs)[("m", "s", "hard")]
+    assert a["legal"] == "illegal" and a["harm"] == "no" and a["seriousness"] == 2
+    tie = [{"model": "m", "scenario": "s", "variant": "hard", "answer": {"legal": x, "harm": "no", "seriousness": None}}
+           for x in ("illegal", "legal")]
+    a = analysis.neutral_answers(tie)[("m", "s", "hard")]
+    assert a["legal"] == "mixed" and a["seriousness"] is None
 
 
-@pytest.mark.skipif(not analysis.have_statsmodels(), reason="statsmodels not installed")
-def test_mixed_model_runs_and_reports_separation_instead_of_crashing():
-    fits = analysis.model_based(planted())
-    assert "claude-opus-5.5: ordinal trend" in fits and "pooled: categories" in fits
-    ordinal = fits["claude-opus-5.5: ordinal trend"]
-    assert ordinal["slopes"]["LH"] > 0.5 and ordinal["slopes"]["LH"] > ordinal["slopes"]["IX"]
-    assert "error" in fits["deepseek-v4-flash: categories"]  # never varies, so no estimate
-
-
-@pytest.mark.skipif(not analysis.have_statsmodels(), reason="statsmodels not installed")
-def test_fits_decline_degenerate_data():
-    one_scenario = [e for e in planted() if e["scenario"] == "s1" and e["model"] == "claude-opus-5.5"]
-    df = analysis.frame(one_scenario)
-    assert "fewer than 2 scenarios" in analysis.fit_mixed(df, ordinal=True)["error"]
-
-
-def test_figures_are_written(tmp_path):
-    pytest.importorskip("matplotlib")
-    written = analysis.figures(planted(), tmp_path / "f")
-    assert {"permission_effect.png", "dose_response.svg", "escalation.png"} <= set(written)
-    assert all((tmp_path / "f" / w).stat().st_size > 1000 for w in written)
-    assert analysis.figures([], tmp_path / "g") == []
+def test_right_when_asked_depends_on_the_track():
+    assert analysis.right_when_asked({"track": "illegal"}, {"legal": "illegal", "harm": "no"}) is True
+    assert analysis.right_when_asked({"track": "illegal"}, {"legal": "legal", "harm": "no"}) is False
+    assert analysis.right_when_asked({"track": "harm"}, {"legal": "legal", "harm": "yes"}) is True
+    assert analysis.right_when_asked({"track": "harm"}, {"legal": "legal", "harm": "no"}) is False
+    assert analysis.right_when_asked({"track": "harm"}, None) is None

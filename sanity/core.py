@@ -134,8 +134,8 @@ def run_single(key, messages, rec_id, extra=None):
             "flags": flags, "cost": cost}
 
 
-def run_conversation(key, system, user, tools, tool_results, rec_id):
-    """The pilot's episode loop with a given toolset: up to MAX_TURNS turns with fixed tool results.
+def run_conversation(key, system, user, tools, tool_results, rec_id, max_turns=None):
+    """The pilot's episode loop with a given toolset: up to MAX_TURNS turns (or max_turns) with fixed tool results.
     A tool result is a string, or a callable taking the call's arguments (for tools such as read_document).
     Each recorded call carries the result it was given."""
     cfg = config(key)
@@ -145,7 +145,7 @@ def run_conversation(key, system, user, tools, tool_results, rec_id):
     calls, texts, reasoning, meta, flags, turn_texts = [], [], [], [], [], []
     cost, cost_known, turns = 0.0, True, 0
     log_raw(rec_id, {"event": "start", "time": time.strftime("%Y-%m-%dT%H:%M:%S%z")})
-    for turn in range(pilot.MAX_TURNS):
+    for turn in range(max_turns or pilot.MAX_TURNS):
         data, err, latency = pilot.post_chat(cfg, messages, tools=tools)
         if err:
             log_raw(rec_id, {"event": "error", "turn": turn, "error": err})

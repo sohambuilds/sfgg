@@ -1,5 +1,10 @@
 # Phase 1 handover: law as a constraint, harm as a price
 
+**Update, 2026-11-03.** §5 and rule 6 in §6 no longer describe what the code does. Phase 1 is now an exploratory study with no
+pre-registration, Claude Opus 5.5 is out of the slate, Claude may draft scenarios alongside people-written ones, and scenarios
+are routine batch jobs on two tracks. `phase1/README.md` is the current description. §1-§4 and §7 still stand as the record of
+the earlier work.
+
 This is the entry point for the co-author taking over the project, and for their coding agent. It covers four things:
 - what the project is;
 - what has been run and found;
