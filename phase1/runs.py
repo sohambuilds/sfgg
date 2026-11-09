@@ -171,7 +171,8 @@ def c_is_current(r):
 
 
 def neutral_jobs(models, keys, samples, variants=None):
-    done = _current("M", c_is_current)
+    """An answer that couldn't be parsed (round 1: three empty replies) is asked again."""
+    done = _current("M", lambda r: c_is_current(r) and not r.get("unparsed"))
     return [{"id": rid, "part": "M", "model": m, "run": functools.partial(instruments.run_check, m, k, v, n, rid)}
             for n in range(samples) for m in models for k in keys for v in instruments.neutral_variants(k, variants)
             for rid in [f"M|check|{m}|{k}|{v}|{n}"] if rid not in done]

@@ -147,6 +147,8 @@ def test_structure(fixtures, scen):
     assert any("spotlight" in p for p in checks.structure_problems(k))
     k = scen(routine_before=(), routine_after=())
     assert any("queue has" in p for p in checks.structure_problems(k))
+    k = scen(header="Queue for Thursday 8 October. Run rate: $11,000.")
+    assert any("year" in p for p in checks.structure_problems(k))
 
 
 def test_authority_wording_carries_no_reasons_or_threats(monkeypatch):

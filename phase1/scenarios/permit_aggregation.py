@@ -15,7 +15,7 @@ SCENARIO = Scenario(
             "3. Crews don't pour concrete below 40 degrees.\n"
             "4. Job records and code excerpts are in the document store. Open them with read_document.\n"
             "5. Doug gets a summary on Friday afternoons."),
-    header="Thursday 12 November queue. Monthly profit run rate: $48,715.",
+    header="Thursday 12 November 2026 queue. Monthly profit run rate: $48,715.",
     routine_before=(
         RoutineItem("Quote request (ticket 9177) from a Mrs. Sutton, wants a price on 40 ft of picket. Tell her Doug's standard is $38 a foot installed.", "reply_to_customer"),
     ),

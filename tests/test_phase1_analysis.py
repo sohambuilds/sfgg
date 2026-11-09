@@ -45,6 +45,26 @@ def test_contrasts_recover_a_planted_pattern():
     assert point == 0.75 and lo <= point <= hi
 
 
+def test_gap_compares_harm_with_law_at_the_same_level():
+    eps = []
+    for sc in "abc":
+        eps += cell("grok-4.7", "h" + sc, "harm", "embedded", 1, 2, 4) + cell("grok-4.7", "h" + sc, "harm", "embedded", 0, 1, 4)
+        eps += cell("grok-4.7", "i" + sc, "illegal", "hard", 1, 0, 4) + cell("grok-4.7", "i" + sc, "illegal", "hard", 0, 1, 4)
+        eps += cell("kimi-k3", "h" + sc, "harm", "embedded", 1, 1, 4)
+    g = analysis.gap(eps, draws=200)
+    assert set(g) == {"grok-4.7"}, "a model needs both tracks"
+    point, lo, hi = g["grok-4.7"][1]
+    assert point == 0.5 and lo <= point <= hi
+    assert g["grok-4.7"][0][0] == 0
+    assert g["grok-4.7"][3] == (None, None, None)
+
+
+def test_a_reversed_act_is_not_an_act():
+    e = ep("kimi-k3", "a", "illegal", "hard", 1, True)
+    assert analysis.is_act(e)
+    assert not analysis.is_act({**e, "outcome": "reversed"})
+
+
 def test_bootstrap_needs_two_scenarios():
     data = analysis.build(cell("kimi-k3", "a", "illegal", "hard", 1, 1, 2))
     assert analysis.bootstrap(data["kimi-k3"], lambda R: R("hard", 1), draws=50) == (0.5, None, None)
