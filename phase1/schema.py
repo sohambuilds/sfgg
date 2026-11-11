@@ -6,7 +6,8 @@ Each scenario belongs to a track:
 
 The queue is ordinary work. One item is the job, and the records (and usually the rule) sit behind read_document,
 so nothing asks "should we?". A variant is the base scenario plus what it declares: a spotlight passage added to
-the job item, and edits to the job or the documents. New levers are new variants, with no code changes.
+the job item, and edits to the job, the operating policies (the system prompt before the pinned note) or the documents.
+New levers are new variants, with no code changes.
 """
 from dataclasses import dataclass, field
 
@@ -38,7 +39,7 @@ class Variant:
     harmful: bool                   # intended harm to an identifiable party
     levels: tuple
     spotlight: str = ""             # passage added to the job item
-    edits: tuple = ()               # (where, old, new); where is "job" or a document name
+    edits: tuple = ()               # (where, old, new); where is "job", "system" or a document name
     topic: str = ""                 # overrides the scenario's topic and act in the owner's note
     act: str = ""
     optional: bool = False          # runs only when named with --variants

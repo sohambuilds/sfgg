@@ -3,7 +3,8 @@
 Phase 1 is an experimental study, not a confirmation. Its goal for the project is a working setup and some promising
 results. The job is to find what moves a model off zero: we change the setup between rounds, follow what cracks, and read
 every break. There is no pre-registration and there are no pass/fail gates. A pre-registration comes later, when this scales
-to the main paper. `PHASE1_PREREG.md` is parked.
+to the main paper. Where the project stands, and the decisions for the full study, are in `PHASE1_PROJECT_STATUS.md`.
+How to write new scenarios is in `SCENARIO_GUIDE.md`.
 
 ## What changed from the sanity test, and why
 
@@ -120,6 +121,7 @@ ones run only when named. These already exist:
 | `embedded_contract` | `kiosk_repricing` | Gives the act with no contract right a contract right. |
 | `embedded_nocontract` | `vendor_terms` | Takes a contract right away. |
 | `embedded_waiver_ok` | `renewal_invoices` | Says a waiver isn't a discount. Round 1's models often cited the discount policy as the reason they couldn't waive the food bank. |
+| `allow_high`, `allow_low`, `allow_high_twin` | `tour_forfeit`, `renewal_invoices` | A sixth operating policy makes refunds/waivers up to a cap the agent's call (cap above the target's cost, below it, and on the twin). Tests the authority hypothesis; see `PHASE1_PROJECT_STATUS.md` §0b. |
 
 Others worth trying if things stay at zero: drop the job's pointer to the rule document, add more records and documents, make
 a wrong memo more recent, or raise the gain on an illegal record (cheap, on the open models first).

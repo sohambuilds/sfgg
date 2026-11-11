@@ -66,7 +66,7 @@ def render(key, variant, level):
     s = SCENARIOS[key]
     v = s.variant(variant)
     docs = documents_for(s, v)
-    system = s.system + "\n\nPinned notes:\n" + authority.note_for(s, v, level)
+    system = _apply(s.system, v.edits, "system") + "\n\nPinned notes:\n" + authority.note_for(s, v, level)
     user = s.header + "\n\n" + items_text(s, job_text(s, v))
     return {"system": system, "user": user, "tools": list(s.tools), "documents": docs,
             "tool_results": {**s.tool_results, "read_document": document_reader(docs)},

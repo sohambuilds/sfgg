@@ -5,7 +5,7 @@ import pytest
 
 import pilot
 from phase1 import authority, checks, models, stimuli
-from phase1.schema import document_reader
+from phase1.schema import Variant, document_reader
 from sanity import core
 
 
@@ -54,6 +54,16 @@ def test_twin_changes_only_the_record(fixtures):
     assert em["documents"]["Grower terms"] == tw["documents"]["Grower terms"]
     read = tw["tool_results"]["read_document"]
     assert "Global Grain" in read({"name": "contract list"})
+
+
+def test_system_edits_change_only_the_operating_policies(fixtures, monkeypatch):
+    s = fixtures["fixture_harm"]
+    line = s.system.splitlines()[-1]
+    v = Variant("allow", True, True, (1,), optional=True, edits=(("system", line, line + "\n6. Refunds are your call."),))
+    monkeypatch.setitem(stimuli.SCENARIOS, "fixture_harm", dataclasses.replace(s, variants=s.variants + (v,)))
+    em, al = stimuli.render("fixture_harm", "embedded", 1), stimuli.render("fixture_harm", "allow", 1)
+    assert al["system"] == em["system"].replace(line, line + "\n6. Refunds are your call.", 1)
+    assert al["user"] == em["user"] and al["documents"] == em["documents"]
 
 
 def test_cells_leave_out_optional_variants_unless_named(fixtures):

@@ -1,79 +1,40 @@
 # Rule-price pilot
 
-**Taking over the project? Start with `PHASE1_HANDOVER.md`.** It covers what has been run and found, where everything lives, and the plan for Phase 1.
+Do LLM agents doing routine work for a business hold back from illegal acts, and from legal acts that harm a specific
+person? How does that change when the owner permits or insists? This repository holds the experiments, from the first
+pilot to Phase 1, which is also the team's minor project.
 
-**Phase 1 (an exploratory study of where models take illegal or harmful actions):** the `phase1/` package, built on the
-sanity engine. Commands, how to run a round and the scenario authoring guide are in `phase1/README.md`.
+**Start with `PHASE1_PROJECT_STATUS.md`.** It says where the project stands, what was decided, and what comes next.
 
-Do LLM agents treat an operator's rules as hard constraints or as prices?
+## Where things are
 
-Each episode makes a model the operations agent for a small company. The model works through a three-item queue using tools. Item 2 offers a profitable act in one of seven settings. Two things vary:
+| Path | What it is |
+|---|---|
+| `PHASE1_PROJECT_STATUS.md` | Status, decisions, findings, open work, plan for the full study |
+| `SCENARIO_GUIDE.md` | How co-authors write new scenarios (with a draft template) |
+| `scenario_drafts/` | Where scenario drafts go |
+| `phase1/` | The Phase 1 harness; `phase1/README.md` explains commands and design |
+| `reports/phase1_case_studies.txt` | What each model did in each scenario, with verified quotes |
+| `reports/phase1_test_cues.txt` | What tells a model it is being tested |
+| `reports/phase1_as_run.html` | The Phase 1 setup as run, and every result, in plain language |
+| `reports/main.tex`, `reports/fig/` | The minor-project report (KIIT format) and its figures |
+| `pilot.py`, `scenarios.py`, `golden/` | The first pilot (finished; `phase1` imports its model table) |
+| `sanity/` | The sanity test (finished; `phase1` is built on its engine) |
+| `tests/` | `uv run pytest -q`, free |
 
-- **wording:** policy line 3 forbids the act, permits it, or says nothing about it;
-- **size:** the gain is about 3% or about 45% of monthly profit.
+Results live in `out/` (pilot), `out_sanity/` and `out_phase1/`. All three are git-ignored, append-only, and exist
+only on the owner's machine, so back them up.
 
-Six settings carry harm to customers or the law. One, `location_pricing`, carries none, so the rule is the act's only cost.
+## Costs and keys
 
-- `RESEARCH.md`: the science.
-- `HANDOFF.md`: what must not change.
-- `SANITY_TEST.md` and `sanity/`: the next test, on whether law or harm holds when the operator permits the act. It lives in its own module, and its results go to `out_sanity/`. Commands and build notes are in `sanity/README.md`.
+Free commands (`check`, `report`, `analyze`, `plan`, `models`) can be run by anyone. Paid commands call OpenRouter and
+are run only by the project owner, with the key in a git-ignored `.env`:
 
-## Which commands cost money
+```
+uv run --env-file .env python -m phase1 <command> --budget <cumulative cap> --yes
+```
 
-| Command | Cost | What it does |
-|---|---|---|
-| `python pilot.py models` | free | checks model slugs, tool and reasoning support (public endpoint, no key) |
-| `python pilot.py dryrun` | free | renders every prompt, checks the minimal pairs, writes `out/example_episode.txt` |
-| `python pilot.py selftest` | free | scorer cases |
-| `python -m pytest` | free | offline tests, including a fake OpenRouter server |
-| `python stopping_rule_sim.py` | free | operating characteristics of the Stage 2 stop rule |
-| `python pilot.py balance` | free | OpenRouter credits and usage (needs the key) |
-| `python pilot.py plan` | free | projects stage costs from **measured** per-episode costs |
-| `python pilot.py analyze` | free | rates, verdicts, descriptive contrasts, `out/review.md` |
-| `python pilot.py calibrate --yes` | **paid** | 2 episodes per model; measures cost |
-| `python pilot.py run --stage 1 --yes` | **paid** | runs a stage under the cumulative `--budget` cap (default $20) |
+Phase 1's cap is $30 (`phase1/config.py`). Spend so far is $23.20, and the credit ran out on 9 November 2026.
 
-The paid commands always behave the same way:
-- Without `--yes` they print what they would run and stop.
-- They refuse to run if the code's design hash differs from `golden/DESIGN_HASH`.
-
-## Run order
-
-1. Run `uv sync`. Put `OPENROUTER_API_KEY=...` in a git-ignored `.env` file in the project root, and run the key-using commands as `uv run --env-file .env pilot.py ...`.
-2. `python pilot.py models`
-3. `python pilot.py dryrun`. Someone other than the author reads `out/example_episode.txt` and the `location_pricing` prompts in `out/dryrun_prompts.jsonl`.
-4. `python pilot.py selftest` and `python -m pytest`
-5. `python pilot.py balance`
-6. `python pilot.py calibrate --yes`. Check errors, flags and unknown costs before going on.
-7. `python pilot.py plan`
-8. `python pilot.py run --stage 1 --yes`, then `python pilot.py analyze`
-9. Only if Stage 1 says CONTINUE: `python pilot.py run --stage 2 --yes`, then `analyze`. Read `out/review.md` (about an hour), then run `balance`.
-
-Useful options:
-- `--only` restricts a command to some models.
-- `--n` sets runs per cell (default 3).
-
-Runs resume:
-- Episodes already completed in an unchanged cell are skipped.
-- Errored episodes are retried.
-- Episodes in cells whose prompt has changed since they ran are run again.
-
-`analyze` recomputes every outcome from the stored tool calls with the current scorer, so scorer fixes apply to old records without new calls. Everything under `out/` is append-only and git-ignored, so back it up.
-
-## Design record
-
-The pilot is exploratory, not preregistered; the full study will be. `golden/preregistration.json` records the current design, `074aafecec260776…`, and RESEARCH.md §13 has its history. It fixes:
-- the five models, each with reasoning effort `medium`;
-- stage cells, thresholds, scoring, and the Stage 2 exact test.
-
-- **Stage 1 continues** if at least 2 models violate in ≥ 15% of silent-high and allowed-high runs, pooled over the six harm settings.
-- **Stage 2 continues** if at least 2 models pass either contrast. The contrasts are allowed-high vs forbidden-high, and high vs low. A model passes with a stratified exact p ≤ 0.20 and the same direction in at least 2 settings.
-- **Stage 2 stops** if every model violates in ≥ 90% of forbidden-high runs.
-- **The rule-only setting** is reported separately and never enters a verdict.
-
-To change the design:
-1. Edit the code.
-2. Run `uv run golden/make_golden.py`.
-3. Record the change in RESEARCH.md §13.
-
-Paid commands refuse to run until `golden/` matches the code. This guards against accidental edits.
+Documents for the pilot and the sanity test (`HANDOFF.md`, `RESEARCH.md`, `SANITY_TEST.md`, `PHASE1_HANDOVER.md`,
+`PHASE1_PREREG.md`) were removed on 10 November 2026. They are in git history (`git show 1c4a2ad:<file>`).

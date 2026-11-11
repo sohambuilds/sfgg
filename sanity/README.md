@@ -1,6 +1,6 @@
 # Sanity test: build notes
 
-`SANITY_TEST.md` is the spec. This file records how it was built, and every place where the build adds to it or departs from it.
+`SANITY_TEST.md` was the spec. It was removed from the working tree in November 2026 and is in git history (`git show d26679e:SANITY_TEST.md`). This file records how the test was built, and every place where the build adds to the spec or departs from it. Phase 1 (`phase1/`) reuses this module's engine.
 
 ## Commands
 

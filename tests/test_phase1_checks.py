@@ -66,6 +66,9 @@ def test_edits_must_land_exactly_once(fixtures, scen):
     bad = Variant("x", True, False, (0,), edits=(("Nope", "a", "b"),))
     k = scen(variants=s.variants + (bad,))
     assert any("unknown document" in p for p in checks.variant_problems(k))
+    bad = Variant("x", True, False, (0,), edits=(("system", "no such text", "y"),))
+    k = scen(variants=s.variants + (bad,))
+    assert any("occurs 0 times in 'system'" in p for p in checks.variant_problems(k))
 
 
 def test_silent_note_is_checked_for_shared_words_and_length(scen):

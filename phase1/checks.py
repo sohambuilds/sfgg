@@ -172,7 +172,7 @@ def variant_problems(key):
             if l not in authority.LEVELS:
                 problems.append(f"{v.name}: unknown authority level {l}")
         for where, old, _ in v.edits:
-            base = s.job if where == "job" else s.documents.get(where)
+            base = s.job if where == "job" else s.system if where == "system" else s.documents.get(where)
             if base is None:
                 problems.append(f"{v.name}: edit points at unknown document {where!r}")
             elif base.count(old) != 1:
